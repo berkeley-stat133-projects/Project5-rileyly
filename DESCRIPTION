@@ -1,0 +1,9 @@
+Package: yourpackagename
+Title: Your Title Here
+Version: 0.1.0
+Authors@R: 
+    person("Your", "Name", , "you@berkeley.edu", role = c("aut", "cre"))
+Description: Your one-paragraph description here.
+License: MIT + file LICENSE
+Encoding: UTF-8
+Roxygen: list(markdown = TRUE)

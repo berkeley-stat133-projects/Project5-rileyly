@@ -1,0 +1,85 @@
+---
+title: yourpackagename
+author: Your Name Here
+format: gfm
+output-file: README.md
+knitr:
+  opts_chunk:
+    fig.path: "man/figures/README-"
+---
+
+<!--
+About this file
+
+This file renders to README.md, your repo's front page on GitHub. Render it
+with the Preview button (or `quarto render project.qmd`), then commit and
+push project.qmd, README.md, and man/figures/ (your plots). Change `title`
+to your package's name, and leave the rest of the YAML as it is.
+
+Fill in the five sections below as Part 5 of the assignment describes.
+Give each plot's chunk a `fig-cap`: it becomes the plot's alt text.
+
+The setup chunk loads your package with load_all(), so the README uses
+your latest code. Load your other packages there too.
+
+The README must render without the API: offline, and without a key. Your
+analysis uses the data set you stored in Part 3. For anything that calls
+the API, and for test() and check(), run it at the console, show the code
+with `eval: false`, and paste the output below it in a plain code block:
+
+    ```{r}
+    #| eval: false
+    your_function("input")
+    ```
+
+    ```
+    [the output you got at the console]
+    ```
+
+Never put an API key in this file. Comments like this one don't show up
+on GitHub.
+-->
+
+```{r}
+#| label: setup
+#| include: false
+devtools::load_all()
+# Load the other packages you use here.
+```
+
+## Overview
+
+[Your answer here.]
+
+## Installation
+
+```{r}
+#| eval: false
+# Your code here.
+```
+
+## Usage
+
+[Your answer here.]
+
+```{r}
+#| eval: false
+# Your code here.
+```
+
+## Analysis
+
+[Your answer here.]
+
+```{r}
+# Your code here.
+```
+
+## Testing
+
+[Your answer here.]
+
+```{r}
+#| eval: false
+# Your code here.
+```

@@ -1,0 +1,9 @@
+^project\.qmd$
+^project_files$
+^README_files$
+^data-raw$
+^\.quarto$
+^.*\.Rproj$
+^\.Rproj\.user$
+^\.positron$
+^\.vscode$
