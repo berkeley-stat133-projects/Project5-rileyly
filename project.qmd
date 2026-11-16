@@ -1,6 +1,6 @@
 ---
-title: yourpackagename
-author: Your Name Here
+title: capitolr
+author: Yao Long
 format: gfm
 output-file: README.md
 knitr:
@@ -49,37 +49,412 @@ devtools::load_all()
 
 ## Overview
 
-[Your answer here.]
+`capitolr` helps passengers find Capitol Corridor trains and check departure information at their boarding station. It uses the third-party Amtraker API and is not affiliated with Amtrak.
+
+Passengers do not need to memorize station codes or train numbers. The package can recognize station names, suggest a unique close match for a misspelled name, and find trains serving a boarding station in the direction of a chosen destination.
+
+The main functions are:
+
+- `find_station()`: converts a station name or code into a station code. Ambiguous names require the user to choose a specific station.
+- `corridor_stops()`: retrieves station-stop information for a train number.
+- `check_train()`: checks one train at a specified boarding station and explains its departure status.
+- `find_trains()`: finds currently returned Capitol Corridor trains serving a station, optionally filtering by destination and including departed trains.
+
+The package also includes `departure_snapshot`, a saved dataset containing 21 train-stop records collected across five stations on November 15, 2026.
+
+The analysis asks: What Capitol Corridor trains were available in the API snapshot for a passenger boarding at Berkeley, and how did their reported departure times compare with the schedule?
+
+The API provides a current snapshot rather than a complete timetable. Reported times may be estimates and do not guarantee future punctuality.
 
 ## Installation
+Install the package from its GitHub repository:
 
 ```{r}
 #| eval: false
-# Your code here.
+
+# Run once if remotes is not installed:
+install.packages("remotes")
+
+remotes::install_github(
+  "berkeley-stat133-projects/Project5-rileyly"
+)
 ```
+
+Load the package:
+
+```{r}
+#| eval: false
+
+library(capitolr)
+```
+
+R version 4.1.0 or later is required. No API key is needed for these requests. The package supplies a project-identifying User-Agent when contacting Amtraker.
+
+Live queries require an internet connection. The saved `departure_snapshot` dataset and the README analysis can be used without contacting the API.
+
+The course repository is currently private, so installation requires access to that repository.
 
 ## Usage
 
-[Your answer here.]
+### Find a station code
+
+Station names and codes are accepted. A unique close spelling match produces a message; ambiguous names require a more specific choice.
+
+This example uses a small local station list and does not contact the API.
+
+```{r}
+example_stations <- list(
+  BKY = list(name = "Berkeley", code = "BKY"),
+  EMY = list(name = "Emeryville", code = "EMY")
+)
+
+capitolr::find_station(
+  "Berkley",
+  station_data = example_stations
+)
+```
+
+For live use, omit `station_data` to search the API's station list:
 
 ```{r}
 #| eval: false
-# Your code here.
+
+capitolr::find_station("Berkeley")
+```
+
+### Retrieve a train's station stops
+
+`corridor_stops()` returns one row per train-stop record, including scheduled and reported arrival and departure times.
+
+The following live query was run at the console. Selected rows and columns from its output are shown below.
+
+```{r}
+#| eval: false
+
+stops_732 <- capitolr::corridor_stops("732")
+head(stops_732)
+```
+
+| Train | Station | Scheduled arrival | Reported arrival | Arrival difference (minutes) | Status |
+|:------|:--------|:------------------|:-----------------|-----------------------------:|:-------|
+| 732 | Emeryville | 2026-11-15 13:06 | 2026-11-15 13:57 | 51 | Departed |
+| 732 | Berkeley | 2026-11-15 13:11 | 2026-11-15 14:03 | 52 | Departed |
+| 732 | Richmond | 2026-11-15 13:18 | 2026-11-15 14:10 | 52 | Departed |
+
+Times are Pacific. Live results change, and a train number may have no currently available records.
+
+### Check a specific train at a boarding station
+
+`check_train()` accepts a station name or code, including a unique close name match.
+
+```{r}
+#| eval: false
+
+capitolr::check_train("732", "Berkley")
+```
+
+The console displayed:
+
+```text
+Matched 'Berkley' to Berkeley (BKY).
+```
+
+The returned record contained:
+
+| Train | Station | Scheduled departure | Reported departure | Difference (minutes) | Status | Boarding message |
+|:------|:--------|:--------------------|:-------------------|---------------------:|:-------|:-----------------|
+| 732 | Berkeley | 2026-11-15 13:12 | 2026-11-15 14:04 | 52 | Departed | Already departed. |
+
+The message prioritizes whether the train has already left, rather than only reporting its delay.
+
+### Find trains without knowing a train number
+
+`find_trains()` searches the current API data for trains serving a boarding station. When a destination is supplied, it must occur after the boarding station in the train's stop sequence.
+
+```{r}
+#| eval: false
+
+capitolr::find_trains(
+  "Berkeley",
+  destination = "Sacramento"
+)
+```
+
+An earlier console query returned the following record:
+
+| Train | Station | Final destination | Scheduled departure | Reported departure | Difference (minutes) | Status |
+|:------|:--------|:------------------|:--------------------|:-------------------|---------------------:|:-------|
+| 738 | Berkeley | Sacramento | 2026-11-15 16:12 | 2026-11-15 16:11 | -1 | Enroute |
+
+After the boarding-message feature was added, this record produced a message asking the passenger to verify the earlier reported time before travel.
+
+This example and the saved dataset were collected at different times. In the later saved snapshot, train 738's reported Berkeley departure had changed to 16:12.
+
+By default, records marked `Departed` are excluded. Include them with:
+
+```{r}
+#| eval: false
+
+capitolr::find_trains(
+  "Berkeley",
+  destination = "Sacramento",
+  include_departed = TRUE
+)
+```
+
+The results are a current API snapshot, not a complete timetable.
+
+### Summarize arrival delays
+
+`summarize_delays()` is an auxiliary analysis function. It summarizes arrival differences for a station using only records marked `Departed` with non-missing delays. It is not a prediction for a passenger's next train.
+
+This example uses illustrative local data:
+
+```{r}
+example_stops <- data.frame(
+  station_code = c("BKY", "BKY", "EMY"),
+  status = c("Departed", "Departed", "Departed"),
+  delay_minutes = c(10, 20, 5)
+)
+
+capitolr::summarize_delays(example_stops, "BKY")
+```
+
+The two Berkeley records have a mean arrival difference of 15 minutes and a maximum of 20 minutes. Each train-stop should appear only once in the input.
+
+### Explore the saved dataset
+
+`departure_snapshot` contains 21 train-stop records across five stations, collected on November 15, 2026. It is available without an API connection.
+
+```{r}
+head(capitolr::departure_snapshot, 3)
+```
+
+View the column definitions with:
+
+```{r}
+#| eval: false
+
+?capitolr::departure_snapshot
 ```
 
 ## Analysis
 
-[Your answer here.]
+### Departures from Berkeley
+
+What Capitol Corridor trains were available in the API snapshot for a passenger boarding at Berkeley, and how did their reported departure times compare with the schedule?
+
+The saved data were collected on November 15, 2026. The plot below shows the reported departure times and final destinations of trains that were not marked as departed from Berkeley.
 
 ```{r}
-# Your code here.
+#| label: berkeley-departures
+#| fig-width: 9
+#| fig-height: 5
+#| fig-cap: "Reported departure times and final destinations of four Capitol Corridor trains at Berkeley in the November 15, 2026 snapshot."
+#| message: false
+#| warning: false
+
+library(ggplot2)
+
+berkeley_departures <- capitolr::departure_snapshot[
+  capitolr::departure_snapshot$station_code == "BKY",
+]
+
+berkeley_departures <- berkeley_departures[
+  order(berkeley_departures$scheduled_departure),
+]
+
+ggplot(
+  berkeley_departures,
+  aes(
+    x = reported_departure,
+    y = reorder(train_num, as.numeric(reported_departure)),
+    color = destination
+  )
+) +
+  geom_point(size = 4) +
+  scale_x_datetime(
+    date_labels = "%H:%M",
+    timezone = "America/Los_Angeles"
+  ) +
+  labs(
+    title = "Capitol Corridor Departures from Berkeley",
+    subtitle = "API snapshot collected on November 15, 2026",
+    x = "Reported departure time (Pacific)",
+    y = "Train number",
+    color = "Final destination",
+    caption = paste(
+      "Source: Amtraker (amtraker.com).",
+      "Reported times may be estimates.",
+      sep = "\n"
+    )
+  ) +
+  theme_minimal() +
+  theme(
+    legend.position = "bottom",
+    plot.caption = element_text(hjust = 0, size = 9),
+    plot.margin = margin(10, 15, 10, 15)
+  )
 ```
+
+```{r}
+#| label: berkeley-departure-table
+
+departure_table <- data.frame(
+  Train = berkeley_departures$train_num,
+  Destination = berkeley_departures$destination,
+  Scheduled = format(
+    berkeley_departures$scheduled_departure,
+    format = "%H:%M",
+    tz = "America/Los_Angeles"
+  ),
+  Reported = format(
+    berkeley_departures$reported_departure,
+    format = "%H:%M",
+    tz = "America/Los_Angeles"
+  ),
+  Difference_minutes = berkeley_departures$departure_delay_minutes
+)
+
+knitr::kable(
+  departure_table,
+  col.names = c(
+    "Train", "Final destination", "Scheduled departure",
+    "Reported departure", "Difference (minutes)"
+  ),
+  caption = "Berkeley departure information in Pacific time."
+)
+```
+
+The plot and table show four trains: 738 to Sacramento at 16:12, 742 to Sacramento at 17:12, 745 to San Jose Diridon at 17:29, and 744 to Auburn at 18:12. All four reported departure times matched their scheduled times in this snapshot. For someone traveling to Sacramento, the two trains with Sacramento as their final destination provide clear starting points for checking a trip; other trains may also serve Sacramento as an intermediate stop.
+
+These results describe the API data at the time of collection, not confirmed future departures. The snapshot is not a complete timetable, and a reported time matching the schedule does not guarantee that the train will depart on time.
+
+### Reported departures earlier than scheduled
+
+Across the five stations, the snapshot contains 21 train-stop records: 16 have reported departure times equal to their schedules, two are one minute later, and three are one or two minutes earlier. These are train-stop records, so the same train can appear at more than one station.
+
+```{r}
+#| label: departure-difference-summary
+
+snapshot <- capitolr::departure_snapshot
+
+difference_counts <- as.data.frame(
+  table(snapshot$departure_delay_minutes),
+  stringsAsFactors = FALSE
+)
+
+names(difference_counts) <- c(
+  "Reported minus scheduled departure (minutes)",
+  "Number of records"
+)
+
+knitr::kable(
+  difference_counts,
+  caption = "Departure time differences across the five queried stations."
+)
+```
+
+The negative differences were unexpected: a passenger might interpret an earlier reported time as evidence that a train has already left. The following table shows the records that require closer inspection.
+
+```{r}
+#| label: early-departure-records
+
+early_departures <- snapshot[
+  !is.na(snapshot$departure_delay_minutes) &
+    snapshot$departure_delay_minutes < 0,
+]
+
+early_table <- data.frame(
+  Train = early_departures$train_num,
+  Station = early_departures$station,
+  Scheduled = format(
+    early_departures$scheduled_departure,
+    format = "%H:%M",
+    tz = "America/Los_Angeles"
+  ),
+  Reported = format(
+    early_departures$reported_departure,
+    format = "%H:%M",
+    tz = "America/Los_Angeles"
+  ),
+  Difference = early_departures$departure_delay_minutes,
+  Status = early_departures$status
+)
+
+knitr::kable(
+  early_table,
+  col.names = c(
+    "Train", "Station", "Scheduled departure",
+    "Reported departure", "Difference (minutes)", "Status"
+  ),
+  caption = "Records with reported departure times earlier than scheduled. Times are Pacific."
+)
+```
+
+A negative difference alone does not establish that a train actually departed early. Records marked `Departed` were excluded when this snapshot was collected, and reported times for upcoming stops may be estimates. The snapshot does not explain why these particular reported times were earlier than scheduled. Therefore, the package displays a message asking the passenger to verify the information rather than claiming that the train has already left.
+
+### Answer and limitations
+
+In this snapshot, a passenger boarding at Berkeley could identify four listed trains and compare their departure times and final destinations using the plot and table. Their reported departure times matched their schedules at collection. Across all five queried stations, reported times differed from the schedule by between two minutes early and one minute late. The package makes this information easier to inspect without requiring passengers to remember station codes or train numbers.
+
+However, these results describe a small snapshot of API-reported information, not actual departure outcomes or long-term reliability. The API may omit services, and stations were queried sequentially rather than simultaneously. Records from the same train at different stations are also related observations. Passengers should treat the output as a current information aid, rather than a complete timetable or a guarantee of punctuality.
+
+Data source: [Amtraker](https://amtraker.com), accessed November 15, 2026. Data are licensed under the [Open Data Commons Attribution License (ODC-By) v1.0](https://opendatacommons.org/licenses/by/1-0/).
 
 ## Testing
 
-[Your answer here.]
+### Testing approach
+
+Tests check station matching, train-stop output, direction filtering, departure messages, and invalid inputs. Most tests use local data or mocked responses so that they do not depend on changing train conditions. One test requests live train data and checks its structure and consistency rather than a fixed delay value.
+
+### Typical inputs
+
+- Test that exact station codes and names return the correct code, ignoring case and surrounding spaces.
+- Test that train-stop output has the documented columns and types.
+- Test that returned train numbers match the requested number and departure differences match the reported and scheduled times.
+- Test that `check_train()` selects the requested station and distinguishes departed trains from expected late departures.
+- Test that `find_trains()` selects trains traveling toward the requested destination.
+- Test that departed trains are excluded by default and included when requested.
+- Test that `summarize_delays()` uses only departed records with non-missing arrival differences at the requested station, and returns the correct count, mean, maximum, and column types.
+
+### Edge cases
+
+- Test that a unique close spelling match returns the correct station code and a message.
+- Test that an ambiguous station name requires a specific choice.
+- Test that an unrecognized name is not silently matched.
+- Test that a station with no matching stop records returns an empty table and a message.
+- Test that missing departure information is described as unknown rather than on schedule.
+- Test that a station with no eligible records has a count of zero and missing summary values, rather than a misleading zero-minute delay.
+
+### Errors
+
+- Test that invalid station inputs, including numbers, multiple values, missing values, and empty strings, produce clear errors.
+- Test that invalid train numbers produce clear errors.
+- Test that `check_train()` rejects an invalid train number before attempting a station lookup.
+- Test that `summarize_delays()` rejects invalid station arguments, non-data-frame inputs, missing required columns, and incorrect column types.
+
+### Bug found and fixed
+
+Initially, `check_train()` looked up the station before validating the train number. An invalid call such as `check_train(738, "Berkeley")` could therefore trigger an unnecessary API request before rejecting the numeric train input.
+
+I first wrote a test that replaced the station lookup with a function that would fail if called. The test expected the train-number validation error, but instead received the station-lookup error. This demonstrated that validation happened too late.
+
+I moved the train-number validation to the beginning of `check_train()`. The same test then passed, confirming that invalid train numbers are rejected before the station lookup. The test remains in the suite to catch future regressions.
+
+### Validation results
+
+The following commands are run at the console. Their output is recorded below so that rendering this README does not run tests or contact the API.
 
 ```{r}
 #| eval: false
-# Your code here.
+
+devtools::test()
+devtools::check()
+```
+
+```text
+[ FAIL 0 | WARN 0 | SKIP 0 | PASS 77 ]
+
+0 errors ✔ | 0 warnings ✔ | 0 notes ✔
 ```

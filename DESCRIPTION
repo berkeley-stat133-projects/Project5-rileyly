@@ -1,9 +1,21 @@
-Package: yourpackagename
-Title: Your Title Here
+Package: capitolr
+Title: Explore Capitol Corridor Train Status
 Version: 0.1.0
-Authors@R: 
-    person("Your", "Name", , "you@berkeley.edu", role = c("aut", "cre"))
-Description: Your one-paragraph description here.
+Depends: R (>= 4.1.0)
+Authors@R:
+    person("Yao", "Long", email = "rileyly@berkeley.edu", role = c("aut", "cre"))
+Description: Retrieves Capitol Corridor train and station stop information
+    from the Amtraker API and returns tidy data frames. Provides tools
+    to summarize differences between scheduled and reported arrival times.
 License: MIT + file LICENSE
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
+Imports: 
+    httr2,
+    lubridate,
+    utils
+Config/roxygen2/version: 8.1.1
+Suggests: 
+    testthat (>= 3.0.0)
+Config/testthat/edition: 3
+LazyData: true
